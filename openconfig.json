@@ -18,7 +18,16 @@
     "admin_user":"cisco",
     "admin_password": "abc_123",
     "upload_location": "//home/suhasbhoir//PycharmProjects//IT_BLOG_PROJECT_YCMOU//uploader",
-    "copyright": "Copyright © NetworkThunder 2022"
+    "copyright": "Copyright © NetworkThunder 2022",
+    "mysql_cred" : [
+        {
+            "user":"suhasbhoir",
+            "password":"xswqazZX2$",
+            "database": "networkthunder",
+            "host": "localhost"
 
-  }
+        }
+                   ]
+
+      }
 }

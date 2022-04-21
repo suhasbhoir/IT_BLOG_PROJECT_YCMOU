@@ -1,9 +1,19 @@
-from flask import Flask, render_template, request, session, redirect, flash
+from flask import Flask, render_template, request, session, redirect, flash, url_for
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_bootstrap import Bootstrap
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, SubmitField
+from wtforms.validators import InputRequired, Email, Length, ValidationError
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_wtf import FlaskForm
 from datetime import datetime
 from flask_mail import Mail
-import json, os, math
+import json, os, math, email_validator
+from flask_bcrypt import Bcrypt
+# from flaskext.mysql import MySQL
+import mysql.connector
 
 with open("openconfig.json", 'r') as wt:
     para = json.load(wt)["parameters"]
@@ -28,10 +38,23 @@ else:
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+conn = mysql.connector.connect(user="suhasbhoir",
+                            password="xswqazZX2$",
+                            database= "networkthunder",
+                            host="localhost")
+cursor = conn.cursor()
+
+
+# mysql = MySQL()
+# app.config['MYSQL_DATABASE_USER'] = para['mysql_cred']
+# app.config['MYSQL_DATABASE_PASSWORD'] = para['mysql_cred']
+# app.config['MYSQL_DATABASE_DB'] = para['mysql_cred']
+# app.config['MYSQL_DATABASE_HOST'] = para['mysql_cred']
+# mysql.init_app(app)
 
 
 class Contacts(db.Model):
-    sno = db.Column(db.Integer, primary_key=True)
+    srno = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False)
     phone_num = db.Column(db.String(12), nullable=False)
     msg = db.Column(db.String(120), nullable=False)
@@ -48,11 +71,40 @@ class Posts(db.Model):
     date = db.Column(db.String(12), nullable=True)
     img_file = db.Column(db.String(12), nullable=True)
 
+class User(db.Model):
+    srno = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False)
+    username = db.Column(db.String(12), unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=False)
+    date = db.Column(db.String(12), nullable=True)
+    email = db.Column(db.String(20), unique=True, nullable=False)
 
-# @app.route("/")
-# def home():
-#     posts = Posts.query.filter_by().all()[0:para['no_of_post']]
-#     return render_template('index.html', parameters=para, posts=posts)
+# class User(UserMixin, db.Model):
+#     id = db.Column(db.Integer, primary_key=True)
+#     name = db.Column(db.String(25), unique=False)
+#     username = db.Column(db.String(15), unique=True)
+#     email = db.Column(db.String(50), unique=True)
+#     password = db.Column(db.String(80))
+#
+#
+# class RegisterForm(FlaskForm):
+#     username = StringField(validators=[InputRequired(), Length(min=4, max=8)], render_kw={"placeholder": "username"})
+#     password = PasswordField(validators=[InputRequired(), Length(min=4, max=8)], render_kw={"placeholder": "password"})
+#
+#     submit = SubmitField('Register')
+#
+#     def validate_username(self, username):
+#         existing_user_username = User.query.filter_by(username=username.data).first()
+#
+#         if existing_user_username:
+#             raise ValidationError("username exist")
+#
+# class LoginForm(FlaskForm):
+#     username = StringField(validators=[InputRequired(), Length(min=4, max=8)], render_kw={"placeholder": "username"})
+#     password = PasswordField(validators=[InputRequired(), Length(min=4, max=8)], render_kw={"placeholder": "password"})
+#
+#     submit = SubmitField('Login')
+
 
 @app.route("/")
 def home():
@@ -63,7 +115,7 @@ def home():
         page = 1
     page = int(page)
     posts = posts[(page - 1) * int(para['no_of_post']):(page - 1) * int(para['no_of_post']) + int(
-    para['no_of_post'])]
+        para['no_of_post'])]
     if page == 1:
         prev = "#"
         next = "/?page=" + str(page + 1)
@@ -126,6 +178,28 @@ def dashboard():
     else:
         return render_template("login.html", parameters=para)
 
+@app.route("/userdashboard", methods=['GET', 'POST'])
+def userdashboard():
+    if "user" in session and session['user'] == para['admin_user']:
+        posts = Posts.query.all()
+        return render_template("dashboard.html", parameters=para, posts=posts)
+
+    if request.method == "POST":
+        username = request.form.get("uname")
+        userpass = request.form.get("pass")
+        if username == para['admin_user'] and userpass == para['admin_password']:
+            # set the session variable
+            session['user'] = username
+            posts = Posts.query.all()
+            return render_template("userDash.html", parameters=para, posts=posts)
+        elif username != para['admin_user'] or userpass != para['admin_password']:
+            return render_template("admin_login_fail.html", parameters=para)
+
+    else:
+        return render_template("login.html", parameters=para)
+
+
+
 
 @app.route("/edit/<string:srno>", methods=['GET', 'POST'])
 def edit(srno):
@@ -180,6 +254,68 @@ def delete(srno):
         db.session.delete(post)
         db.session.commit()
     return redirect("/dashboard")
+
+
+# _________________________________________________________________
+@app.route("/userlogin", methods=['GET','POST'])
+def userlogin():
+    username= request.form.get('username')
+    password = request.form.get('password')
+
+    cursor.execute(
+        "SELECT * FROM `user` WHERE `username` LIKE '{}' AND `password` LIKE '{}' ".format(username, password))
+    users = cursor.fetchall()
+    # print(users)
+    if len(users) > 0:
+        # print(users)
+        return render_template('userDash.html', parameters=para)
+    else:
+        return render_template('userlogin.html', )
+
+    # form = LoginForm()
+    # return render_template('userlogin.html', form=form)
+
+@app.route("/registeruser", methods=['GET', 'POST'])
+def registeruser():
+    return render_template('signup.html', parameters=para)
+
+@app.route("/signup", methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        '''Add entry to the database'''
+        name = request.form.get('name')
+        username = request.form.get('username')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        password = request.form.get('password')
+        entry1 = User(name=name,username=username, password=password, date=datetime.now(), email=email)
+        db.session.add(entry1)
+        db.session.commit()
+
+    return render_template('userlogin.html', parameters=para)
+
+
+    # null = 'NULL'
+    # name = request.form.get('name')
+    # date = 'CURRENT_TIMESTAMP'
+    # username = request.form.get('username')
+    # email = request.form.get('email')
+    # password = request.form.get('password')
+    #
+    # """INSERT INTO `user` (`id`, `name`, `date`, `username`, `email`, `password`) VALUES (NULL, 'Pramod mane', CURRENT_TIMESTAMP, 'pramod1988', 'pramod@gmail.com', 'zxc_123');"""
+    # cursor.execute("""INSER INTO `user` (`id`, `name`, `date`, `username`, `email`, `password`) VALUES ('{}','{}','{}','{}','{}','{}')""".format(null, name, date, username, email, password))
+    # print(cursor.execute("INSER INTO `user` (`id`, `name`, `date`, `username`, `email`, `password`) VALUES ('{}','{}','{}','{}','{}','{}')".format(null, name, date, username, email, password)))
+    # conn.commit()
+    # return "<h1>User added to db<h1>"
+
+    # form = RegisterForm()
+    # if form.validate_on_submit():
+    #     hashpass = Bcrypt.generate_password_hash(form.password.data)
+    #     new_user = User(username=form.username.data, password=hashpass)
+    #     db.session.add(new_user)
+    #     db.session.commit()
+    #     return redirect(url_for('userlogin'))
+    # return render_template('signup.html', form=form)
 
 
 if __name__ == '__main__':
