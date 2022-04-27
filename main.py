@@ -1,9 +1,9 @@
 from flask import Flask, render_template, request, session, redirect, flash, url_for
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from flask_bootstrap import Bootstrap
-from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField
-from wtforms.validators import InputRequired, Email, Length, ValidationError
+# from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+# from flask_bootstrap import Bootstrap
+# from flask_wtf import FlaskForm
+# from wtforms import StringField, PasswordField, SubmitField
+# from wtforms.validators import InputRequired, Email, Length, ValidationError
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -19,7 +19,7 @@ with open("openconfig.json", 'r') as wt:
     para = json.load(wt)["parameters"]
 local_server = True
 app = Flask(__name__)
-app.secret_key = 'super-secret-key'
+app.secret_key = os.urandom(128)  # 'super-secret-key'
 app.config['UPLOAD_FOLDER'] = para['upload_location']
 app.config.update(
     MAIL_SERVER='smtp.gmail.com',
@@ -39,9 +39,9 @@ else:
 
 db = SQLAlchemy(app)
 conn = mysql.connector.connect(user="suhasbhoir",
-                            password="xswqazZX2$",
-                            database= "networkthunder",
-                            host="localhost")
+                               password="xswqazZX2$",
+                               database="networkthunder",
+                               host="localhost")
 cursor = conn.cursor()
 
 
@@ -71,6 +71,7 @@ class Posts(db.Model):
     date = db.Column(db.String(12), nullable=True)
     img_file = db.Column(db.String(12), nullable=True)
 
+
 class User(db.Model):
     srno = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False)
@@ -78,6 +79,7 @@ class User(db.Model):
     password = db.Column(db.String(120), nullable=False)
     date = db.Column(db.String(12), nullable=True)
     email = db.Column(db.String(20), unique=True, nullable=False)
+
 
 # class User(UserMixin, db.Model):
 #     id = db.Column(db.Integer, primary_key=True)
@@ -178,27 +180,36 @@ def dashboard():
     else:
         return render_template("login.html", parameters=para)
 
+
 @app.route("/userdashboard", methods=['GET', 'POST'])
 def userdashboard():
-    if "user" in session and session['user'] == para['admin_user']:
+    if "user_id" in session:
         posts = Posts.query.all()
-        return render_template("dashboard.html", parameters=para, posts=posts)
+        return render_template("userDash.html", parameters=para, posts=posts)
 
     if request.method == "POST":
-        username = request.form.get("uname")
-        userpass = request.form.get("pass")
-        if username == para['admin_user'] and userpass == para['admin_password']:
-            # set the session variable
-            session['user'] = username
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        cursor.execute(
+            "SELECT * FROM `user` WHERE `username` LIKE '{}' AND `password` LIKE '{}' ".format(username, password))
+        users = cursor.fetchall()
+        # print(users)
+        if len(users) > 0:
+            print(users)
+            session['user_id'] = users[0][0]
             posts = Posts.query.all()
             return render_template("userDash.html", parameters=para, posts=posts)
-        elif username != para['admin_user'] or userpass != para['admin_password']:
+        elif 'user_id' != session:
             return render_template("admin_login_fail.html", parameters=para)
 
     else:
         return render_template("login.html", parameters=para)
 
 
+# @app.route("abc")
+# def abc():
+#     return render_template("userDash.html")
 
 
 @app.route("/edit/<string:srno>", methods=['GET', 'POST'])
@@ -232,6 +243,38 @@ def edit(srno):
         return render_template('edit.html', parameters=para, post=post, srno=srno)
 
 
+@app.route("/edit1/<string:srno>", methods=['GET', 'POST'])
+def edit1(srno):
+    if "user_id" in session:
+        if request.method == "POST":
+            box_title = request.form.get('title')
+            tline = request.form.get('tline')
+            slug = request.form.get('slug')
+            content = request.form.get('content')
+            img_file = request.form.get('img_file')
+            date = datetime.now()
+
+            if srno == '0':
+                post = Posts(title=box_title, slug=slug, content=content, tagline=tline, img_file=img_file, date=date)
+                db.session.add(post)
+                db.session.commit()
+
+            else:
+                post = Posts.query.filter_by(srno=srno).first()
+                post.title = box_title
+                post.tagline = tline
+                post.slug = slug
+                post.content = content
+                post.img_file = img_file
+                post.date = date
+                db.session.commit()
+                return redirect('/edit1/' + srno)
+
+        post = Posts.query.filter_by(srno=srno).first()
+        return render_template('edit1.html', parameters=para, post=post, srno=srno)
+
+
+
 @app.route("/uploader/", methods=['GET', 'POST'])
 def uploader():
     if "user" in session and session['user'] == para['admin_user']:
@@ -247,6 +290,12 @@ def logout():
     return redirect('/dashboard')
 
 
+@app.route("/logout1/")
+def logout1():
+    session.pop('user_id')
+    return redirect('/userlogin')
+
+
 @app.route("/delete/<string:srno>", methods=['GET', 'POST'])
 def delete(srno):
     if "user" in session and session['user'] == para['admin_user']:
@@ -257,9 +306,9 @@ def delete(srno):
 
 
 # _________________________________________________________________
-@app.route("/userlogin", methods=['GET','POST'])
+@app.route("/userlogin", methods=['GET', 'POST'])
 def userlogin():
-    username= request.form.get('username')
+    username = request.form.get('username')
     password = request.form.get('password')
 
     cursor.execute(
@@ -267,17 +316,17 @@ def userlogin():
     users = cursor.fetchall()
     # print(users)
     if len(users) > 0:
-        # print(users)
-        return render_template('userDash.html', parameters=para)
+        print(users)
+        session['user_id'] = users[0][0]
+        return redirect('/userdashboard')
     else:
         return render_template('userlogin.html', )
 
-    # form = LoginForm()
-    # return render_template('userlogin.html', form=form)
 
 @app.route("/registeruser", methods=['GET', 'POST'])
 def registeruser():
     return render_template('signup.html', parameters=para)
+
 
 @app.route("/signup", methods=['GET', 'POST'])
 def signup():
@@ -288,12 +337,18 @@ def signup():
         email = request.form.get('email')
         phone = request.form.get('phone')
         password = request.form.get('password')
-        entry1 = User(name=name,username=username, password=password, date=datetime.now(), email=email)
+        entry1 = User(name=name, username=username, password=password, date=datetime.now(), email=email)
         db.session.add(entry1)
         db.session.commit()
 
-    return render_template('userlogin.html', parameters=para)
+    else:
+        username = request.form.get('username')
+        cursor.execute("""SELECT * FROM `user` WHERE `username` LIKE '{}'""".format(username))
+        newuser = cursor.fetchall()
+        session['user_id']=newuser[0][0]
+        return redirect('/userlogin')
 
+    return render_template('userlogin.html', parameters=para)
 
     # null = 'NULL'
     # name = request.form.get('name')
