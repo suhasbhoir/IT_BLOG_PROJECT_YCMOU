@@ -11,10 +11,12 @@ from flask_wtf import FlaskForm
 from datetime import datetime
 from flask_mail import Mail, Message
 import json, os, math, email_validator
-from flask_bcrypt import Bcrypt
-# from flaskext.mysql import MySQL
+import bcrypt
+from flaskext.mysql import MySQL
 import mysql.connector
 from random import randint
+import pymysql
+import re
 
 with open("openconfig.json", 'r') as wt:
     para = json.load(wt)["parameters"]
@@ -47,12 +49,12 @@ conn = mysql.connector.connect(user="suhasbhoir",
 cursor = conn.cursor()
 
 
-# mysql = MySQL()
-# app.config['MYSQL_DATABASE_USER'] = para['mysql_cred']
-# app.config['MYSQL_DATABASE_PASSWORD'] = para['mysql_cred']
-# app.config['MYSQL_DATABASE_DB'] = para['mysql_cred']
-# app.config['MYSQL_DATABASE_HOST'] = para['mysql_cred']
-# mysql.init_app(app)
+mysql = MySQL()
+app.config['MYSQL_DATABASE_USER'] = 'suhasbhoir'
+app.config['MYSQL_DATABASE_PASSWORD'] = 'xswqazZX2$'
+app.config['MYSQL_DATABASE_DB'] = 'networkthunder'
+app.config['MYSQL_DATABASE_HOST'] = 'localhost'
+mysql.init_app(app)
 
 
 class Contacts(db.Model):
@@ -78,7 +80,7 @@ class User(db.Model):
     srno = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False)
     username = db.Column(db.String(12), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)
+    password = db.Column(db.String(256), nullable=False)
     date = db.Column(db.String(12), nullable=True)
     email = db.Column(db.String(20), unique=True, nullable=False)
 
@@ -313,6 +315,69 @@ def delete(srno):
 
 
 # _________________________________________________________________
+
+
+
+@app.route("/signup", methods=['GET', 'POST'])
+def signup():
+    conn = mysql.connect()
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+
+    msg = ''
+
+    if request.method == 'POST' and 'username' in request.form and 'password' in request.form and 'email' in request.form:
+        # Create variables for easy access
+        name = request.form['name']
+        username = request.form['username']
+        password = request.form['password'].encode("utf-8")
+        # pw_hash = bcrypt.hashpw(password, bcrypt.gensalt())
+        email = request.form['email']
+        date = datetime.now()
+        msg = Message(subject='OTP', sender=para['mail_user'], recipients=[email])
+        msg.body = str(otp)
+        mail.send(msg)
+
+        # Check if account exists using MySQL
+        cursor.execute('SELECT * FROM user WHERE username = %s', (username))
+        account = cursor.fetchone()
+        # If account exists show error and validation checks
+        # flash("Account already exist")
+        # return render_template("Userexist.html", parameters=para, msg=msg)
+
+        if account:
+            msg = 'Account already exists!'
+        elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
+            msg = 'Invalid email address!'
+        elif not re.match(r'[A-Za-z0-9]+', username):
+            msg = 'Username must contain only characters and numbers!'
+        elif not username or not password or not email:
+            msg = 'Please fill out the form!'
+
+        else:
+            # Account doesnt exists and the form data is valid, now insert new account into accounts table
+            cursor.execute('INSERT INTO user VALUES (NULL, %s, %s, %s, %s, %s)', (name, date, username, email, password))
+            conn.commit()
+            msg = 'You have successfully registered!'
+            return render_template("otpsent.html", parameters=para, msg=msg )
+
+    elif request.method == 'POST':
+        # Form is empty... (no POST data)
+        msg = 'Please fill out the form!'
+        flash("Your account has been registered successfully")
+    # Show registration form with message (if any)
+    return render_template('signup.html', parameters=para, msg=msg)
+
+
+@app.route('/otpvalidate', methods=['POST'])
+def otpvalidate():
+    user_otp = request.form['otp']
+    if otp == int(user_otp):
+        # flash("Your Email verification successful ", "success")
+        return render_template('userlogin.html', parameters=para)
+    else:
+        flash("Authentication to OTP failed. Chek you registered email", "critical")
+        return render_template('otpsent.html', parameters=para )
+
 @app.route("/userlogin", methods=['GET', 'POST'])
 def userlogin():
     username = request.form.get('username')
@@ -320,90 +385,56 @@ def userlogin():
 
     if request.method == 'POST':
         usnm = request.form["username"]
-        session["user"] = usnm
+        pass1 = request.form["password"]
+        session["user"] = username
+        session["pass"] = password
         print(usnm)
+        print(pass1)
 
-    cursor.execute(
-        "SELECT * FROM `user` WHERE `username` LIKE '{}' AND `password` LIKE '{}' ".format(username, password))
-    users = cursor.fetchall()
-    # print(users)
-    if len(users) > 0:
-        print(users)
-        session['user_id'] = users[0][0]
-        return redirect('/userdashboard')
-
+        cursor.execute(
+            "SELECT * FROM `user` WHERE `username` LIKE '{}' AND `password` LIKE '{}' ".format(usnm, pass1))
+        users = cursor.fetchall()
+        # print(users)
+        if len(users) > 0:
+            print(users)
+            session['user_id'] = users[0][0]
+            return redirect('/userdashboard')
     else:
         return render_template('userlogin.html', )
 
-#
-# @app.route("/<uuid>")
-# def uuid(usr):
-#     return f"<h1>{usr}</h1>"
 
 @app.route("/registeruser", methods=['GET', 'POST'])
 def registeruser():
     return render_template('signup.html', parameters=para)
 
-
-@app.route("/signup", methods=['GET', 'POST'])
-def signup():
-    if request.method == 'POST':
-        '''Add entry to the database'''
-        name = request.form.get('name')
-        username = request.form.get('username')
-        email = request.form.get('email')
-        msg = Message(subject='OTP', sender=para['mail_user'], recipients=[email])
-        msg.body = str(otp)
-        mail.send(msg)
-        phone = request.form.get('phone')
-        password = request.form.get('password')
-        entry1 = User(name=name, username=username, password=password, date=datetime.now(), email=email)
-        db.session.add(entry1)
-        db.session.commit()
-        return render_template('otpsent.html', parameters=para)
-
-    else:
-        username = request.form.get('username')
-        cursor.execute("""SELECT * FROM `user` WHERE `username` LIKE '{}'""".format(username))
-        newuser = cursor.fetchall()
-        session['user_id'] = newuser[0][0]
-        return redirect('/userlogin')
+# @app.route("/routetoOTP", methods=['GET', 'POST'])
+# def routetoOTP():
+#     return render_template('otpsent.html', parameters=para)
+# @app.route("/signup", methods=['GET', 'POST'])
+# def signup():
+#     if request.method == 'POST':
+#         '''Add entry to the database'''
+#         name = request.form.get('name')
+#         username = request.form.get('username')
+#         email = request.form.get('email')
+#         msg = Message(subject='OTP', sender=para['mail_user'], recipients=[email])
+#         msg.body = str(otp)
+#         mail.send(msg)
+#         phone = request.form.get('phone')
+#         password = request.form.get('password')
+#         entry1 = User(name=name, username=username, password=password, date=datetime.now(), email=email)
+#         db.session.add(entry1)
+#         db.session.commit()
+#         return render_template('otpsent.html', parameters=para)
+#
+#     else:
+#         username = request.form.get('username')
+#         cursor.execute("""SELECT * FROM `user` WHERE `username` LIKE '{}'""".format(username))
+#         newuser = cursor.fetchall()
+#         session['user_id'] =from flask_bcrypt newuser[0][0]
+#         return redirect('/userlogin')
 
     # return render_template('userlogin.html', parameters=para)
-
-@app.route('/otpvalidate', methods=['POST'])
-def otpvalidate():
-    user_otp = request.form['otp']
-    if otp == int(user_otp):
-        flash("Your Email verification successful ", "success")
-        return render_template('userlogin.html', parameters=para)
-    else:
-        flash("Authentication to OTP failed", "critical")
-        return render_template('otpsent.html', parameters=para )
-
-
-    # null = 'NULL'
-    # name = request.form.get('name')
-    # date = 'CURRENT_TIMESTAMP'
-    # username = request.form.get('username')
-    # email = request.form.get('email')
-    # password = request.form.get('password')
-    #
-    # """INSERT INTO `user` (`id`, `name`, `date`, `username`, `email`, `password`) VALUES (NULL, 'Pramod mane', CURRENT_TIMESTAMP, 'pramod1988', 'pramod@gmail.com', 'zxc_123');"""
-    # cursor.execute("""INSER INTO `user` (`id`, `name`, `date`, `username`, `email`, `password`) VALUES ('{}','{}','{}','{}','{}','{}')""".format(null, name, date, username, email, password))
-    # print(cursor.execute("INSER INTO `user` (`id`, `name`, `date`, `username`, `email`, `password`) VALUES ('{}','{}','{}','{}','{}','{}')".format(null, name, date, username, email, password)))
-    # conn.commit()
-    # return "<h1>User added to db<h1>"
-
-    # form = RegisterForm()
-    # if form.validate_on_submit():
-    #     hashpass = Bcrypt.generate_password_hash(form.password.data)
-    #     new_user = User(username=form.username.data, password=hashpass)
-    #     db.session.add(new_user)
-    #     db.session.commit()
-    #     return redirect(url_for('userlogin'))
-    # return render_template('signup.html', form=form)
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

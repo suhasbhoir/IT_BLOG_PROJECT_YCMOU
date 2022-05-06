@@ -17,10 +17,9 @@
       integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3"
       crossorigin="anonymous"
     />
-    <title>UserLogin</title>
+    <title>User registerd</title>
   </head>
-
-  <body class="bg-vine">
+  <body class="col">
     <nav class="navbar">
       <a
         href=""
@@ -29,69 +28,37 @@
         >NetworkThunder</a
       >
     </nav>
+
     <div class="container">
       <div class="row">
-        <div class="col-md-8">
+        <div class="col-md-7">
           <h1
             class="text-light display-4 mt-100 mt-white"
             style="font-size: 35px; color: white"
           >
-            Our mission is to make your business better through technology
+            Leveraging tech to drive a better IT experience
           </h1>
           <br />
           <h1
             class="text-light display-4 mt-white"
             style="font-size: 35px; color: white"
           >
-            Python: Compile, run and ship your pseudo-code.
+            Building the future with tech, gear, and software
           </h1>
         </div>
-        <div class="col-md-4">
-                  {% with messages = get_flashed_messages(with_categories=true) %} {% if messages
-%} {% for category, message in messages %}
-<div class="alert alert-danger" role="alert">
-  <a href="#" class="alert-link"> {{ message }} </a>.
-</div>
-  {% endfor %} {% endif %} {% endwith %}
+        <div class="col-md-5">
           <div class="card mt-100-1">
             <div class="card-body">
               <form method="POST" id="contactForm" action="/signup">
-                <label>Name</label><br />
-                <input
-                  type="text"
-                  class="form-control"
-                  placeholder="Name"
-                  name="name"
-                /><br />
-                <label>Email</label><br />
-                <input
-                  type="email"
-                  class="form-control"
-                  placeholder="Email Id"
-                  name="email"
-                /><br />
-                <label>Username</label><br />
-                <input
-                  type="text"
-                  class="form-control"
-                  placeholder="Userid"
-                  name="username"
-                /><br />
-                <label>Password</label><br />
-                <input
-                  type="password"
-                  class="form-control"
-                  placeholder="Password"
-                  name="password"
-                /><br />
-                <input
-                  type="submit"
-                  class="btn btn-primary btn-block btn-lg"
-                  value="Sign Up"
-                /><br />
+                {% with messages = get_flashed_messages(with_categories=true) %} {% if messages
+%} {% for category, message in messages %}
+<div class="alert alert-info" role="alert">
+  <a href="#" class="alert-link"> {{ message }} </a>.
+</div>
+  {% endfor %} {% endif %} {% endwith %}
               </form>
               <p style="margin-top: 15px">
-                Already a Member? <a href="/userlogin">Log in</a>
+                User Already exist <a href="/signup">Click here to Sign Up again</a>
               </p>
               <p style="margin-top: 15px">Go to <a href="/">Home</a></p>
             </div>

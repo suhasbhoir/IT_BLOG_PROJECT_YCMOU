@@ -45,7 +45,14 @@
 
           </h1>
         </div>
+
         <div class="col-md-4">
+                                {% with messages = get_flashed_messages(with_categories=true) %} {% if messages
+%} {% for category, message in messages %}
+<div class="alert alert-info" role="alert">
+  <a href="#" class="alert-link"> {{ message }} </a>.
+</div>
+  {% endfor %} {% endif %} {% endwith %}
           <div class="card mt-100-1">
             <div class="card-body">
               <form method="POST" id="contactForm" action="/otpvalidate">
@@ -53,7 +60,7 @@
                 <input
                   type="text"
                   class="form-control"
-                  placeholder="otp"
+                  placeholder="Enter your OTP"
                   name="otp"
                 /><br />
                 <input
@@ -68,6 +75,7 @@
         </div>
       </div>
     </div>
+
 
     <!-- Optional JavaScript; choose one of the two! -->
 
