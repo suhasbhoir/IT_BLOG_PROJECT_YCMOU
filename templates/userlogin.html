@@ -18,11 +18,15 @@
       crossorigin="anonymous"
     />
     <title>UserLogin</title>
+    <style type="text/css">
+      .backing{
+        background: url('{{ url_for('static', filename='assets/img/div1.webp') }}')
+    </style>
   </head>
   <body class="bg-nav">
     <nav class="navbar">
       <a
-        href=""
+        href="/"
         class="navbar-brand text-light"
         style="color: white; margin-left: 15px"
         >NetworkThunder</a
@@ -46,18 +50,18 @@
             Building the future with tech, gear, and software
           </h1>
         </div>
-        <div class="col-md-4">
-          <div class="card mt-100-1">
+        <div class="col-md-4 ">
+          <div class="card mt-100-1 backing">
             <div class="card-body">
               <form method="POST" id="contactForm" action="/userlogin">
-                <label>Username</label><br />
+                <label style="color:white; font-weight: bold">Username</label><br />
                 <input
                   type="text"
                   class="form-control"
                   placeholder="username"
                   name="username"
                 /><br />
-                <label>Password</label><br />
+                <label style="color:white; font-weight: bold">Password</label><br />
                 <input
                   type="password"
                   class="form-control"
@@ -70,10 +74,10 @@
                   value="Login"
                 /><br />
               </form>
-              <p style="margin-top: 15px">
-                Not a member? <a href="/registeruser">Sign Up</a>
+              <p style="margin-top: 15px; color:white; font-weight: bold">
+                Not a member? <a style="color:black; font-weight:bold" href="/registeruser">Sign Up</a>
               </p>
-              <p style="margin-top: 15px">Go to <a href="/">Home</a></p>
+              <p style="margin-top: 15px; color:white; font-weight:bold">Go to <a style="color:black; font-weight:bold" href="/">Home</a></p>
             </div>
           </div>
         </div>

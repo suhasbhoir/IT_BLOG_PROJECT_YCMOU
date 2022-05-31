@@ -1,17 +1,9 @@
 from flask import Flask, render_template, request, session, redirect, flash, url_for
-# from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-# from flask_bootstrap import Bootstrap
-# from flask_wtf import FlaskForm
-# from wtforms import StringField, PasswordField, SubmitField
-# from wtforms.validators import InputRequired, Email, Length, ValidationError
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
-from werkzeug.security import generate_password_hash, check_password_hash
-from flask_wtf import FlaskForm
 from datetime import datetime
 from flask_mail import Mail, Message
 import json, os, math, email_validator
-import bcrypt
 from flaskext.mysql import MySQL
 import mysql.connector
 from random import randint
@@ -314,10 +306,6 @@ def delete(srno):
     return redirect("/dashboard")
 
 
-# _________________________________________________________________
-
-
-
 @app.route("/signup", methods=['GET', 'POST'])
 def signup():
     conn = mysql.connect()
@@ -375,7 +363,7 @@ def otpvalidate():
         # flash("Your Email verification successful ", "success")
         return render_template('userlogin.html', parameters=para)
     else:
-        flash("Authentication to OTP failed. Chek you registered email", "critical")
+        flash("Authentication to OTP failed. Check your registered email", "critical")
         return render_template('otpsent.html', parameters=para )
 
 @app.route("/userlogin", methods=['GET', 'POST'])
